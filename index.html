@@ -747,6 +747,105 @@
   }
   .cancel-btn:hover { color: var(--ink); }
 
+  .account-bar {
+    text-align: center;
+    margin-top: 36px;
+    font-size: 12.5px;
+  }
+  .account-toggle {
+    background: none;
+    border: none;
+    color: var(--muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .account-toggle:hover { color: #4A4A44; }
+  .account-panel {
+    display: none;
+    max-width: 260px;
+    margin: 12px auto 0;
+  }
+  .account-panel.open { display: block; }
+  .google-btn {
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 9px 16px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: #4A4A44;
+    cursor: pointer;
+  }
+  .google-btn:hover { border-color: #4A4A44; }
+  .account-divider {
+    font-size: 11px;
+    color: var(--muted);
+    margin: 10px 0;
+  }
+  .email-row {
+    display: flex;
+    gap: 6px;
+  }
+  .email-row input {
+    flex: 1;
+    min-width: 0;
+    font-family: 'Manrope', sans-serif;
+    font-size: 13px;
+    padding: 8px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--ink);
+  }
+  .email-row input:focus {
+    outline: none;
+    border-color: #4A4A44;
+  }
+  .email-btn {
+    flex-shrink: 0;
+    background: #fff;
+    border: 1px solid #4A4A44;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #4A4A44;
+    cursor: pointer;
+  }
+  .email-btn:hover { background: #F7F7F5; }
+  .account-msg {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 14px;
+  }
+  .account-signed-in {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--muted);
+  }
+  .account-signout {
+    background: none;
+    border: none;
+    color: var(--muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 0;
+  }
+  .account-signout:hover { color: #4A4A44; }
+
   .app-footer {
     text-align: center;
     margin-top: 40px;
@@ -823,13 +922,54 @@
     No habits yet — add your first one below.
   </div>
 
+  <div class="account-bar" id="accountBar">
+    <div class="account-signed-out" id="accountSignedOut">
+      <button type="button" class="account-toggle" id="accountToggle">sync across devices</button>
+      <div class="account-panel" id="accountPanel">
+        <button type="button" class="google-btn" id="googleSignInBtn">continue with google</button>
+        <div class="account-divider">or</div>
+        <div class="email-row">
+          <input type="email" id="signInEmail" placeholder="you@email.com" autocomplete="email">
+          <button type="button" class="email-btn" id="sendEmailLinkBtn">send link</button>
+        </div>
+        <div class="account-msg" id="accountMsg"></div>
+      </div>
+    </div>
+    <div class="account-signed-in" id="accountSignedIn" style="display:none;">
+      <span id="accountEmailLabel"></span>
+      <button type="button" class="account-signout" id="signOutBtn">sign out</button>
+    </div>
+  </div>
+
   <div class="app-footer">
     <div>🌸 created by marina in sept 2026</div>
     <div>last updated: sept 2026</div>
   </div>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup,
+  sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
+  onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getFirestore, doc, setDoc, getDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDLBa2Y94csMRGOSjvpgBTN7F3ysbJETkc",
+  authDomain: "habit-garden-007.firebaseapp.com",
+  projectId: "habit-garden-007",
+  storageBucket: "habit-garden-007.firebasestorage.app",
+  messagingSenderId: "129592107719",
+  appId: "1:129592107719:web:bf0fba876cb55a9d3654e2"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
 (function(){
   const ACCENTS = ['#F7A8C4', '#C6AEE8', '#F5D97A', '#9BE0C4', '#9AC9F0', '#F7B98C'];
   const ALL_EMOJI = [
@@ -1051,12 +1191,28 @@
     render();
   }
 
+  let currentUser = null;
+  let suppressCloudWrite = false;
+
   function saveHabits(){
     try {
       localStorage.setItem('habit-tracker-habits', JSON.stringify(habits));
     } catch(e) {
       console.error('Could not save habits', e);
     }
+    if (currentUser && !suppressCloudWrite) {
+      setDoc(doc(db, 'habitData', currentUser.uid), { habits }).catch(() => {});
+    }
+  }
+
+  function applyIncomingCloudHabits(newHabits){
+    suppressCloudWrite = true;
+    habits = newHabits || [];
+    try {
+      localStorage.setItem('habit-tracker-habits', JSON.stringify(habits));
+    } catch(e) {}
+    render();
+    suppressCloudWrite = false;
   }
 
   function calcStreak(habit){
@@ -1504,6 +1660,93 @@
 
     render();
   };
+
+  // --- Account / sync ---
+  const accountToggle = document.getElementById('accountToggle');
+  const accountPanel = document.getElementById('accountPanel');
+  const accountSignedOut = document.getElementById('accountSignedOut');
+  const accountSignedIn = document.getElementById('accountSignedIn');
+  const accountEmailLabel = document.getElementById('accountEmailLabel');
+  const accountMsg = document.getElementById('accountMsg');
+  const signInEmail = document.getElementById('signInEmail');
+
+  let unsubscribeSnapshot = null;
+
+  accountToggle.onclick = () => {
+    accountPanel.classList.toggle('open');
+  };
+
+  document.getElementById('googleSignInBtn').onclick = () => {
+    accountMsg.textContent = '';
+    signInWithPopup(auth, new GoogleAuthProvider()).catch(() => {
+      accountMsg.textContent = "couldn't sign in — try again";
+    });
+  };
+
+  document.getElementById('sendEmailLinkBtn').onclick = () => {
+    const email = signInEmail.value.trim();
+    if (!email || !email.includes('@')) {
+      accountMsg.textContent = 'enter a valid email first';
+      return;
+    }
+    accountMsg.textContent = 'sending...';
+    sendSignInLinkToEmail(auth, email, {
+      url: window.location.href,
+      handleCodeInApp: true
+    }).then(() => {
+      try { localStorage.setItem('emailForSignIn', email); } catch(e) {}
+      accountMsg.textContent = 'check your email for a sign-in link ✨';
+    }).catch(() => {
+      accountMsg.textContent = "couldn't send that link — try again";
+    });
+  };
+
+  document.getElementById('signOutBtn').onclick = () => {
+    signOut(auth);
+  };
+
+  onAuthStateChanged(auth, (user) => {
+    currentUser = user;
+    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+
+    if (user) {
+      accountSignedOut.style.display = 'none';
+      accountSignedIn.style.display = 'flex';
+      accountEmailLabel.textContent = user.email || 'signed in';
+
+      const userDocRef = doc(db, 'habitData', user.uid);
+      getDoc(userDocRef).then((snap) => {
+        if (snap.exists()) {
+          applyIncomingCloudHabits(snap.data().habits || []);
+        } else {
+          setDoc(userDocRef, { habits }).catch(() => {});
+        }
+        unsubscribeSnapshot = onSnapshot(userDocRef, (s) => {
+          if (s.exists()) applyIncomingCloudHabits(s.data().habits || []);
+        });
+      }).catch(() => {});
+    } else {
+      accountSignedOut.style.display = 'block';
+      accountSignedIn.style.display = 'none';
+    }
+  });
+
+  // Complete email-link sign-in if this page was opened from that link
+  if (isSignInWithEmailLink(auth, window.location.href)) {
+    let email = null;
+    try { email = localStorage.getItem('emailForSignIn'); } catch(e) {}
+    if (!email) {
+      email = window.prompt('confirm the email you used to request the link:');
+    }
+    if (email) {
+      signInWithEmailLink(auth, email, window.location.href).then(() => {
+        try { localStorage.removeItem('emailForSignIn'); } catch(e) {}
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }).catch(() => {
+        accountMsg.textContent = "that sign-in link didn't work — try requesting a new one";
+      });
+    }
+  }
 
   document.getElementById('cancelAddBtn').onclick = () => {
     applyEmoji(DEFAULT_EMOJI, false);
