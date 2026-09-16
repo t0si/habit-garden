@@ -748,9 +748,14 @@
   .cancel-btn:hover { color: var(--ink); }
 
   .account-bar {
-    text-align: center;
-    margin-top: 36px;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
     font-size: 12.5px;
+    position: relative;
+  }
+  .account-signed-out {
+    position: relative;
   }
   .account-toggle {
     background: none;
@@ -766,8 +771,18 @@
   .account-toggle:hover { color: #4A4A44; }
   .account-panel {
     display: none;
-    max-width: 260px;
-    margin: 12px auto 0;
+    width: 240px;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    z-index: 10;
+    text-align: left;
   }
   .account-panel.open { display: block; }
   .google-btn {
@@ -829,7 +844,7 @@
   .account-signed-in {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 10px;
     color: var(--muted);
   }
@@ -878,6 +893,25 @@
 </head>
 <body>
 <div class="wrap">
+  <div class="account-bar" id="accountBar">
+    <div class="account-signed-out" id="accountSignedOut">
+      <button type="button" class="account-toggle" id="accountToggle">sign in</button>
+      <div class="account-panel" id="accountPanel">
+        <button type="button" class="google-btn" id="googleSignInBtn">continue with google</button>
+        <div class="account-divider">or</div>
+        <div class="email-row">
+          <input type="email" id="signInEmail" placeholder="you@email.com" autocomplete="email">
+          <button type="button" class="email-btn" id="sendEmailLinkBtn">send link</button>
+        </div>
+        <div class="account-msg" id="accountMsg"></div>
+      </div>
+    </div>
+    <div class="account-signed-in" id="accountSignedIn" style="display:none;">
+      <span id="accountEmailLabel"></span>
+      <button type="button" class="account-signout" id="signOutBtn">sign out</button>
+    </div>
+  </div>
+
   <div class="garden-caption">Habit Garden</div>
   <div class="garden-empty" id="gardenEmpty">Build a streak to plant your first flower 🌱</div>
   <div class="garden-hero">
@@ -920,25 +954,6 @@
 
   <div class="empty-state" id="emptyState" style="display:none;">
     No habits yet — add your first one below.
-  </div>
-
-  <div class="account-bar" id="accountBar">
-    <div class="account-signed-out" id="accountSignedOut">
-      <button type="button" class="account-toggle" id="accountToggle">sync across devices</button>
-      <div class="account-panel" id="accountPanel">
-        <button type="button" class="google-btn" id="googleSignInBtn">continue with google</button>
-        <div class="account-divider">or</div>
-        <div class="email-row">
-          <input type="email" id="signInEmail" placeholder="you@email.com" autocomplete="email">
-          <button type="button" class="email-btn" id="sendEmailLinkBtn">send link</button>
-        </div>
-        <div class="account-msg" id="accountMsg"></div>
-      </div>
-    </div>
-    <div class="account-signed-in" id="accountSignedIn" style="display:none;">
-      <span id="accountEmailLabel"></span>
-      <button type="button" class="account-signout" id="signOutBtn">sign out</button>
-    </div>
   </div>
 
   <div class="app-footer">
